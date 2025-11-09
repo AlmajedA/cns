@@ -8,11 +8,7 @@ from ..core.models import Bounds, LngLat, Ring, PointFeature
 from ..core.geo import load_geo_from_json, compute_bounds, ring_bounds, pad_bounds
 from .renderer import CanvasRenderer
 from .popup import SectionPopup
-from app.core.paths import resource_path
-
-logo_path = resource_path("assets", "logo.png")                    # image
-config_path = resource_path("config", "east.json")                 # data json
-cns_dir = resource_path("CNS drawings", "MPS")                     # whole folder
+from app.core.paths import assets_path
 
 
 class MapApp:
@@ -24,21 +20,35 @@ class MapApp:
         self.root.title(C.TITLE)
 
         # Title bar
-        title_frame = tk.Frame(self.root, bg=C.BACKGROUND, pady=10); title_frame.pack(fill="x")
-        self.map_title_label = tk.Label(title_frame, text="Automated CNS 3D Infrastructure", font=("Arial", 24, "bold"), fg="#19171C", bg=C.BACKGROUND)
+        title_frame = tk.Frame(self.root, bg=C.BACKGROUND, pady=10)
+        title_frame.pack(fill="x")
+        self.map_title_label = tk.Label(
+            title_frame,
+            text="Automated CNS 3D Infrastructure",
+            font=("Arial", 24, "bold"),
+            fg="#19171C",
+            bg=C.BACKGROUND,
+        )
         self.map_title_label.pack()
 
         # Map container
-        map_frame = tk.Frame(self.root); map_frame.pack(fill="both", expand=True)
+        map_frame = tk.Frame(self.root)
+        map_frame.pack(fill="both", expand=True)
         self.renderer = CanvasRenderer(map_frame)
 
-        # Optional corner logo
-        logo_path = str((C.ASSETS_DIR / "logo.png"))  # place your logo here
-        self.root.after(0, lambda: self.renderer.set_corner_logo(logo_path, max_width=100, max_height=100, opacity=255, margin=12))
+        # Optional corner logo (loaded via helper so it works when frozen)
+        logo_path = str(assets_path("logo.png"))  # place your logo in /assets/logo.png
+        self.root.after(
+            0,
+            lambda: self.renderer.set_corner_logo(
+                logo_path, max_width=100, max_height=100, opacity=255, margin=12
+            ),
+        )
 
         # Back button
         self.back_btn = tk.Button(map_frame, text="⟵ Back", command=self.back_to_map)
-        self.back_btn.place(x=10, y=10); self.back_btn.lower()
+        self.back_btn.place(x=10, y=10)
+        self.back_btn.lower()
 
         # State
         self.main_rings = main_rings
@@ -65,8 +75,10 @@ class MapApp:
 
     # ---------- Draw ----------
     def _redraw(self) -> None:
-        if self.in_detail: self.back_btn.lift()
-        else: self.back_btn.lower()
+        if self.in_detail:
+            self.back_btn.lift()
+        else:
+            self.back_btn.lower()
 
         detail_fill = None
         if self.in_detail and self.detail_for_idx is not None and hasattr(C, "SECTOR_COLORS"):
@@ -93,13 +105,16 @@ class MapApp:
         self.renderer.canvas.config(cursor="")
 
     def on_ring_click(self, _event: tk.Event) -> None:
-        if self.in_detail: return
+        if self.in_detail:
+            return
         current = self.renderer.canvas.find_withtag("current")
-        if not current: return
+        if not current:
+            return
         item = current[0]
         tags = self.renderer.canvas.gettags(item)
         ring_tag = next((t for t in tags if t.startswith("ring-")), None)
-        if ring_tag is None: return
+        if ring_tag is None:
+            return
         try:
             idx = int(ring_tag.split("-")[1])
         except (IndexError, ValueError):
@@ -108,16 +123,19 @@ class MapApp:
         self.animate_zoom_to(tgt, then=lambda: self._load_detail_and_show(idx))
 
     def _on_escape(self, _evt: tk.Event) -> None:
-        if self.in_detail: self.back_to_map()
+        if self.in_detail:
+            self.back_to_map()
 
     # ---------- Detail loading ----------
     def _load_detail_and_show(self, idx: int) -> None:
         path = C.DETAIL_JSON_FOR_RING.get(idx)
         if path is None or not path.exists():
-            self._redraw(); return
+            self._redraw()
+            return
         detail_rings, detail_points = load_geo_from_json(path)
         if not detail_rings:
-            self._redraw(); return
+            self._redraw()
+            return
         self.in_detail = True
         self.detail_for_idx = idx
         self.cur_rings = detail_rings
@@ -135,19 +153,31 @@ class MapApp:
 
     # ---------- Point click -> Popup ----------
     def on_point_click(self, event: tk.Event) -> None:
-        if not self.in_detail: return
+        if not self.in_detail:
+            return
         current = self.renderer.canvas.find_withtag("current")
-        if not current: return
+        if not current:
+            return
         tags = self.renderer.canvas.gettags(current[0])
         ptag = next((t for t in tags if t.startswith("point-")), None)
-        if ptag is None: return
-        try: pidx = int(ptag.split("-")[1])
-        except (IndexError, ValueError): return
+        if ptag is None:
+            return
+        try:
+            pidx = int(ptag.split("-")[1])
+        except (IndexError, ValueError):
+            return
         try:
             lon, lat, site, sector_id, freq, power = self.cur_points[pidx]
         except IndexError:
             return
-        section_info = {"site": site, "lon": lon, "lat": lat, "sectorId": sector_id, "freq": freq, "power": power}
+        section_info = {
+            "site": site,
+            "lon": lon,
+            "lat": lat,
+            "sectorId": sector_id,
+            "freq": freq,
+            "power": power,
+        }
         SectionPopup(self.root, site or "Details", section_info)
 
     # ---------- Zoom animation ----------
@@ -167,7 +197,8 @@ class MapApp:
                 self.renderer.canvas.after(delay, step)
             else:
                 self.cur_bounds = target
-                if then: then()
+                if then:
+                    then()
 
         step()
 

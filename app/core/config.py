@@ -1,29 +1,25 @@
 from __future__ import annotations
 from pathlib import Path
-from app.core.paths import resource_path
-
-logo_path = resource_path("assets", "logo.png")                    # image
-config_path = resource_path("config", "east.json")                 # data json
-cns_dir = resource_path("CNS drawings", "MPS")                     # whole folder
+from app.core.paths import (
+    config_root, assets_root, drawings_root,
+    config_path, assets_path, drawings_path,
+)
 
 # --------------------------------------------------
-# Paths (resolve relative to the project root)
+# Paths (resolve correctly in dev AND frozen app)
 # --------------------------------------------------
-APP_DIR = Path(__file__).resolve().parents[1]   # .../app
-PROJECT_ROOT = APP_DIR.parent                    # repo root
+DATA_DIR: Path     = config_root()
+DRAWINGS_DIR: Path = drawings_root()
+ASSETS_DIR: Path   = assets_root()
 
-DATA_DIR = PROJECT_ROOT / "config"
-DRAWINGS_DIR = PROJECT_ROOT / "CNS drawings"
-ASSETS_DIR = PROJECT_ROOT / "assets"
-
-GEOJSON_PATH = DATA_DIR / "sa_combined.json"
+GEOJSON_PATH = config_path("sa_combined.json")
 
 DETAIL_JSON_FOR_RING: dict[int, Path] = {
-    0: DATA_DIR / "east.json",
-    1: DATA_DIR / "center.json",
-    2: DATA_DIR / "north.json",
-    3: DATA_DIR / "south.json",
-    4: DATA_DIR / "west.json",
+    0: config_path("east.json"),
+    1: config_path("center.json"),
+    2: config_path("north.json"),
+    3: config_path("south.json"),
+    4: config_path("west.json"),
 }
 
 # --------------------------------------------------

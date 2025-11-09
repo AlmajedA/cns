@@ -11,11 +11,6 @@ try:
     _PIL_AVAILABLE = True
 except Exception:
     _PIL_AVAILABLE = False
-from app.core.paths import resource_path
-
-logo_path = resource_path("assets", "logo.png")                    # image
-config_path = resource_path("config", "east.json")                 # data json
-cns_dir = resource_path("CNS drawings", "MPS")                     # whole folder
 
 
 class CanvasRenderer:

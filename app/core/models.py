@@ -1,11 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
-from app.core.paths import resource_path
-
-logo_path = resource_path("assets", "logo.png")                    # image
-config_path = resource_path("config", "east.json")                 # data json
-cns_dir = resource_path("CNS drawings", "MPS")                     # whole folder
 
 # Lightweight, focused shared types
 LngLat = Tuple[float, float]

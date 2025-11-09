@@ -13,11 +13,9 @@ try:
     _PIL_AVAILABLE = True
 except Exception:
     _PIL_AVAILABLE = False
-from app.core.paths import resource_path
 
-logo_path = resource_path("assets", "logo.png")                    # image
-config_path = resource_path("config", "east.json")                 # data json
-cns_dir = resource_path("CNS drawings", "MPS")                     # whole folder
+# Use runtime-aware base for packaged data
+from app.core.paths import drawings_path
 
 
 class SectionPopup:
@@ -77,7 +75,8 @@ class SectionPopup:
         footer.pack(fill="x")
         btn_wrap = tk.Frame(footer, bg="#e74c3c", relief=tk.FLAT, bd=0, cursor="hand2")
         btn_wrap.pack(pady=5)
-        btn_lbl = tk.Label(btn_wrap, text="✕ Close", bg="#e74c3c", fg="white", font=("Arial", 11, "bold"), padx=20, pady=5, cursor="hand2")
+        btn_lbl = tk.Label(btn_wrap, text="✕ Close", bg="#e74c3c", fg="white",
+                           font=("Arial", 11, "bold"), padx=20, pady=5, cursor="hand2")
         btn_lbl.pack()
         for w in (btn_wrap, btn_lbl):
             w.bind("<Button-1>", lambda _e: self.close())
@@ -123,24 +122,31 @@ class SectionPopup:
             if not value:
                 continue
             rowf = tk.Frame(content, bg="white"); rowf.pack(fill="x", pady=0)
-            tk.Label(rowf, text=f"{key}:", font=("Arial", 11, "bold"), bg="white", fg="#2c3e50", width=12, anchor="w").pack(side="left")
+            tk.Label(rowf, text=f"{key}:", font=("Arial", 11, "bold"), bg="white", fg="#2c3e50",
+                     width=12, anchor="w").pack(side="left")
             if isinstance(value, list):
                 bullets = tk.Frame(rowf, bg="white"); bullets.pack(side="left", padx=(3,0), fill="x", expand=True)
                 for item in value:
                     line = tk.Frame(bullets, bg="white"); line.pack(anchor="w")
                     tk.Label(line, text="•", font=("Arial", 10, "bold"), bg="white", fg="#34495e").pack(side="left", padx=(0,4))
-                    tk.Label(line, text=str(item), font=("Arial", 10), bg="white", fg="#34495e", anchor="w", wraplength=160).pack(side="left")
+                    tk.Label(line, text=str(item), font=("Arial", 10), bg="white", fg="#34495e",
+                             anchor="w", wraplength=160).pack(side="left")
             else:
-                tk.Label(rowf, text=str(value), font=("Arial", 10), bg="white", fg="#34495e", anchor="w", wraplength=160).pack(side="left", padx=(3,0), fill="x", expand=True)
+                tk.Label(rowf, text=str(value), font=("Arial", 10), bg="white", fg="#34495e",
+                         anchor="w", wraplength=160).pack(side="left", padx=(3,0), fill="x", expand=True)
 
         # attach sections
         if title == "🏢 Site Information":
-            self._add_pdf_button(content, "Site Drawing", self.get_site_drawing_path(data.get("Site ID", "Unknown")), icon="📄")
+            self._add_pdf_button(content, "Site Drawing",
+                                 self.get_site_drawing_path(data.get("Site ID", "Unknown")), icon="📄")
         if title == "⚙️ Equipment Details":
-            sid = getattr(self, "_site_id", None) or data.get("Site ID") or data.get("Site") or data.get("site") or "Unknown"
-            self._add_pdf_button(content, "Equipment Drawing", self.get_equipment_drawing_path(sid), icon="🔌")
+            sid = (getattr(self, "_site_id", None)
+                   or data.get("Site ID") or data.get("Site") or data.get("site") or "Unknown")
+            self._add_pdf_button(content, "Equipment Drawing",
+                                 self.get_equipment_drawing_path(sid), icon="🔌")
         if title == "📍 Location":
-            self._add_frequency_gallery(content, getattr(self, "_site_id", None) or data.get("Site") or data.get("site") or "Unknown")
+            self._add_frequency_gallery(content,
+                                        getattr(self, "_site_id", None) or data.get("Site") or data.get("site") or "Unknown")
 
     # ---- helpers: buttons & files ----
     def _add_pdf_button(self, parent, label: str, path: str, icon: str = "📄") -> None:
@@ -169,7 +175,8 @@ class SectionPopup:
 
         def on_enter(_e): card.configure(bg="#e9ecef")
         def on_leave(_e): card.configure(bg="#f8f9fa")
-        card.bind("<Enter>", on_enter); card.bind("<Leave>", on_leave)
+        card.bind("<Enter>", on_enter)
+        card.bind("<Leave>", on_leave)
 
     def _add_frequency_gallery(self, parent, site_id: str) -> None:
         sep = tk.Frame(parent, bg="#ecf0f1", height=1); sep.pack(fill="x", pady=(10,5))
@@ -213,9 +220,9 @@ class SectionPopup:
         return " ".join("".join(out).split())
 
     def get_site_drawing_path(self, site_id: str) -> str:
-        base_dir = os.path.abspath("./CNS drawings")
+        base_dir = os.fspath(drawings_path())
         if not site_id or site_id == "Unknown" or not os.path.isdir(base_dir):
-            return "./CNS drawings/unknown.pdf"
+            return os.fspath(drawings_path("unknown.pdf"))
         site_tokens = [t for t in self._normalize(str(site_id)).split() if t not in {"al", "el"}] or [site_id]
         room_kw = ["equipment room", "rack room", "room layout", "shelter layout", "layout"]
         exclude_kw = ["radio", "radios", "front", "back", "r&s", "rack front", "elevation"]
@@ -231,21 +238,20 @@ class SectionPopup:
                 score = token_hits * 3 + kw_bonus - (len(norm) / 200.0)
                 if score > best_score:
                     best_score = score; best = os.path.join(root, fn)
-        if best: 
+        if best:
             try: return os.path.relpath(best, os.path.abspath("."))
             except Exception: return best
-        # fallback: any pdf with tokens
         for root, _dirs, files in os.walk(base_dir):
             for fn in files:
                 if fn.lower().endswith(".pdf") and all(t in self._normalize(fn) for t in site_tokens):
                     try: return os.path.relpath(os.path.join(root, fn), os.path.abspath("."))
                     except Exception: return os.path.join(root, fn)
-        return "./CNS drawings/unknown.pdf"
+        return os.fspath(drawings_path("unknown.pdf"))
 
     def get_equipment_drawing_path(self, site_id: str) -> str:
-        base_dir = os.path.abspath("./CNS drawings")
+        base_dir = os.fspath(drawings_path())
         if not site_id or site_id == "Unknown" or not os.path.isdir(base_dir):
-            return "./CNS drawings/unknown.pdf"
+            return os.fspath(drawings_path("unknown.pdf"))
         site_tokens = [t for t in self._normalize(str(site_id)).split() if t not in {"al", "el"}] or [site_id]
         include_kw = ["radio", "radios", "elevation", "front", "back", "rack front", "rcag", "equipment"]
         exclude_kw = ["room layout", "equipment room", "rack room", "shelter layout", "layout"]
@@ -261,7 +267,7 @@ class SectionPopup:
                 score = token_hits * 3 + kw_bonus - (len(norm) / 200.0)
                 if score > best_score:
                     best_score = score; best = os.path.join(root, fn)
-        if best: 
+        if best:
             try: return os.path.relpath(best, os.path.abspath("."))
             except Exception: return best
         for root, _dirs, files in os.walk(base_dir):
@@ -269,17 +275,17 @@ class SectionPopup:
                 if fn.lower().endswith(".pdf") and all(t in self._normalize(fn) for t in site_tokens):
                     try: return os.path.relpath(os.path.join(root, fn), os.path.abspath("."))
                     except Exception: return os.path.join(root, fn)
-        return "./CNS drawings/unknown.pdf"
+        return os.fspath(drawings_path("unknown.pdf"))
 
     def find_frequency_images(self, site_id: str) -> List[str]:
+        pref = os.fspath(drawings_path("freq"))
+        fb = os.fspath(drawings_path())
         base_candidates = []
-        pref = os.path.abspath("./CNS drawings/freq")
-        fb = os.path.abspath("./CNS drawings")
         if os.path.isdir(pref): base_candidates.append(pref)
         if os.path.isdir(fb) and fb not in base_candidates: base_candidates.append(fb)
         if not site_id or site_id == "Unknown" or not base_candidates: return []
         site_tokens = [t for t in self._normalize(site_id).split() if t]
-        freq_kw = [site_id]  # keep simple per your dataset
+        freq_kw = [site_id]
         scored: List[Tuple[float, str]] = []
         seen = set()
         for base in base_candidates:
@@ -318,6 +324,10 @@ class SectionPopup:
 
     # ---- data mapping ----
     def parse_display_data(self, section_info: dict) -> dict:
+        """
+        Normalize the raw point dict into four display sections.
+        Expected keys in section_info: site, lon, lat, sectorId, freq (dict), power (dict)
+        """
         site = section_info.get("site")
         lon = section_info.get("lon")
         lat = section_info.get("lat")

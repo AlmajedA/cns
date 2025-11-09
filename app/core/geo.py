@@ -3,11 +3,11 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 from .models import Bounds, Ring, PointFeature
-from app.core.paths import resource_path
+from app.core.paths import config_path
 
-logo_path = resource_path("assets", "logo.png")                    # image
-config_path = resource_path("config", "east.json")                 # data json
-cns_dir = resource_path("CNS drawings", "MPS")                     # whole folder
+
+# Optional: default GeoJSON file in /config
+DEFAULT_GEOJSON = config_path("sa_combined.json")
 
 # -------- GeoJSON iteration helpers --------
 def iter_rings(geometry: Dict[str, Any]) -> Iterable[Ring]:
@@ -24,17 +24,18 @@ def iter_points(feature: Dict[str, Any]) -> Iterable[PointFeature]:
     gtype = geom.get("type")
     coords = geom.get("coordinates")
     props = feature.get("properties", {}) if isinstance(feature.get("properties"), dict) else {}
-    site = props.get('site', "")
-    sector_id = props.get('sectorId', "")
-    freq = props.get('freq', {})
-    power = props.get('power', {})
+    site = props.get("site", "")
+    sector_id = props.get("sectorId", "")
+    freq = props.get("freq", {})
+    power = props.get("power", {})
     if gtype == "Point" and isinstance(coords, list) and len(coords) == 2:
         lon, lat = float(coords[0]), float(coords[1])
         yield (lon, lat, site, sector_id, freq, power)
 
 # -------- Loaders --------
-def load_geo_from_json(path: Path) -> Tuple[List[Ring], List[PointFeature]]:
+def load_geo_from_json(path: Path | str) -> Tuple[List[Ring], List[PointFeature]]:
     """Load rings (Polygons) and points (Point) from a FeatureCollection."""
+    path = Path(path)  # allow either Path or string
     with path.open("r", encoding="utf-8") as f:
         gj = json.load(f)
 
@@ -49,6 +50,9 @@ def load_geo_from_json(path: Path) -> Tuple[List[Ring], List[PointFeature]]:
             points.append(p)
     return rings, points
 
+# Optional convenience: load the default combined file from /config
+def load_default_geo() -> Tuple[List[Ring], List[PointFeature]]:
+    return load_geo_from_json(DEFAULT_GEOJSON)
 # -------- Bounds & padding --------
 def compute_bounds(rings: List[Ring]) -> Bounds:
     if not rings:
