@@ -1,0 +1,6 @@
+CNS drawings/*
+venv/*
+**/__pycache__/
+**/.venv
+**/.vscode/
+app/venv
