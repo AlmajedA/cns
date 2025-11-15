@@ -145,8 +145,15 @@ class SectionPopup:
             self._add_pdf_button(content, "Equipment Drawing",
                                  self.get_equipment_drawing_path(sid), icon="🔌")
         if title == "📍 Location":
-            self._add_frequency_gallery(content,
-                                        getattr(self, "_site_id", None) or data.get("Site") or data.get("site") or "Unknown")
+            site_id = (
+                getattr(self, "_site_id", None)
+                or data.get("Site")
+                or data.get("site")
+                or "Unknown"
+            )
+            self._add_frequency_gallery(content, site_id)
+            self._add_rack_videos(content, site_id)
+
 
     # ---- helpers: buttons & files ----
     def _add_pdf_button(self, parent, label: str, path: str, icon: str = "📄") -> None:
@@ -213,6 +220,79 @@ class SectionPopup:
             for w in (cell, lbl, cap):
                 w.bind("<Button-1>", _open)
 
+
+    def _add_rack_videos(self, parent, site_id: str) -> None:
+        # Section separator
+        sep = tk.Frame(parent, bg="#ecf0f1", height=1)
+        sep.pack(fill="x", pady=(10, 5))
+
+        wrap = tk.Frame(parent, bg="#f8f9fa", relief=tk.RAISED, bd=2)
+        wrap.pack(anchor="w", fill="x", padx=10, pady=2)
+
+        head = tk.Frame(wrap, bg="#f8f9fa")
+        head.pack(fill="x", padx=8, pady=(8, 0))
+        tk.Label(
+            head,
+            text="🎥 Rack Video",
+            font=("Arial", 10, "bold"),
+            bg="#f8f9fa",
+            fg="#2c3e50",
+        ).pack(side="left")
+
+        gal = tk.Frame(wrap, bg="#f8f9fa")
+        gal.pack(fill="x", padx=8, pady=8)
+
+        video_path = self.find_rack_video(site_id)
+
+        if not video_path:
+            tk.Label(
+                gal,
+                text="No video found",
+                font=("Arial", 9),
+                bg="#f8f9fa",
+                fg="#7f8c8d",
+            ).pack(anchor="w")
+            return
+
+        # One button for this site's video
+        btn = tk.Frame(gal, bg="white", relief=tk.SOLID, bd=1, cursor="hand2")
+        btn.pack(anchor="w", pady=4, fill="x")
+
+        tk.Label(
+            btn,
+            text="▶",
+            font=("Arial", 14),
+            bg="white",
+            fg="#3498db",
+            width=2,
+        ).pack(side="left")
+
+        tk.Label(
+            btn,
+            text=os.path.basename(video_path),
+            bg="white",
+            fg="#2c3e50",
+        ).pack(side="left")
+
+        def _open(_evt=None, path=video_path):
+            abs_path = os.path.abspath(path)
+            if not os.path.exists(abs_path):
+                messagebox.showerror("File not found", f"{path}")
+                return
+            sys_name = platform.system()
+            try:
+                if sys_name == "Darwin":
+                    subprocess.run(["open", abs_path], check=False)
+                elif sys_name == "Windows":
+                    os.startfile(abs_path)  # nosec
+                else:
+                    subprocess.run(["xdg-open", abs_path], check=False)
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not open video:\n{e}")
+
+        btn.bind("<Button-1>", _open)
+
+
     # ---- search helpers ----
     def _normalize(self, s: str) -> str:
         s = s.lower()
@@ -247,6 +327,44 @@ class SectionPopup:
                     try: return os.path.relpath(os.path.join(root, fn), os.path.abspath("."))
                     except Exception: return os.path.join(root, fn)
         return os.fspath(drawings_path("unknown.pdf"))
+
+
+    def find_rack_video(self, site_id: str) -> str | None:
+        """
+        Look for exactly one video whose filename (without extension)
+        matches the site_id string exactly.
+
+        Folder structure:
+        CNS drawings/
+            videos/
+                east/
+                west/
+                center/
+                north/
+                south/
+        """
+        if not site_id:
+            return None
+
+        base_dir = os.fspath(drawings_path("videos"))
+        if not os.path.isdir(base_dir):
+            return None
+
+
+        wanted_name = site_id.strip()
+        exts = (".mp4", ".mkv", ".avi", ".mov", ".webm")
+
+        for root, _dirs, files in os.walk(base_dir):
+            for fn in files:
+                name, ext = os.path.splitext(fn)
+                if ext.lower() not in exts:
+                    continue
+                # exact match, case-sensitive as you requested
+                if name == wanted_name:
+                    return os.path.join(root, fn)
+
+        return None
+
 
     def get_equipment_drawing_path(self, site_id: str) -> str:
         base_dir = os.fspath(drawings_path())
